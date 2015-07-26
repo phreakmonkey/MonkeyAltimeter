@@ -9,19 +9,19 @@
 
 #include "Config.h"
 
-LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
+LiquidCrystal_I2C lcd(LCDADDR, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
 
-#define BMP085_ADDRESS 0x77   // I2C address of BMP085
+#define BMP085_ADDRESS 0x77   // I2C address of BMP085 / BMP180
 const unsigned char OSS = 2;  // BMP085 Oversampling Setting
 
 // BMP085 Calibration values
 int ac1;
-int ac2; 
-int ac3; 
+int ac2;
+int ac3;
 unsigned int ac4;
 unsigned int ac5;
 unsigned int ac6;
-int b1; 
+int b1;
 int b2;
 int mb;
 int mc;
@@ -29,7 +29,7 @@ int md;
 
 // b5 is calculated in bmp085GetTemperature(...), this variable is also used in bmp085GetPressure(...)
 // so ...Temperature(...) must be called before ...Pressure(...).
-long b5; 
+long b5;
 short temperature;
 long pressure;
 int32_t altitude;
@@ -97,18 +97,18 @@ void setup()
 {
   Wire.begin();
   delay(500);  // Give the LCD a bit to intialize...
-  lcd.begin(16,2);   // initialize the lcd for 16 chars 2 lines, turn on backlight
+  lcd.begin(16, 2);  // initialize the lcd for 16 chars 2 lines, turn on backlight
   delay(100);
 
   // BANNER
   lcd.clear();
-  lcd.setCursor(0,0);  lcd.print("MonkeyAlt v1.0");
-  lcd.setCursor(0,1);  lcd.print("phreakmonkey.com");
+  lcd.setCursor(0, 0);  lcd.print("MonkeyAlt v1.0");
+  lcd.setCursor(0, 1);  lcd.print("phreakmonkey.com");
 
 #ifndef HEADLESS
   readConfig();  // Load user defined values
 #endif
-  
+
   bmp085Calibration();
   // Get initial values
   temperature = bmp085GetTemperature(bmp085ReadUT());
@@ -138,7 +138,7 @@ void setup()
   // LED
   pinMode(RED, OUTPUT);
   pinMode(GREEN, OUTPUT);
-  digitalWrite(RED, LOW);  
+  digitalWrite(RED, LOW);
   digitalWrite(GREEN, LOW);
 
   delay(3500);
@@ -159,7 +159,7 @@ void loop()
     updateLED();
     clockTimer = millis();
   }
-  
+
 #ifndef HEADLESS
   if (millis() - VSItimer > 4000) computeVSI(); // every 4 seconds
   rotaryCheck();  // monitor for rotation
@@ -172,7 +172,7 @@ void loop()
   else if (setupmode) UIsetup();
 #endif
   else UInormal();
-      
+
   if (blinkTimer && (millis() - blinkTimer > 100)) {
     blinkTimer = 0;
     lcd.backlight();
@@ -186,38 +186,38 @@ void loop()
 // ***** INPUT MENU LOGIC *****
 void UIalarm()
 {
-    switch(button) {
-      case 1:  // disarm
-        armed = false;
-        alarm = false;
-        break;
-      case 2:  // disarm and disable
-        armed = false;
-        alarm = false;
-        althold = 0;
-        screen = ALTHOLD;
-        break;
-    }
-    // Proceed in case we're adjusting something when the alarm goes off:
-    button = 0;  UInormal();  
-    return;
+  switch (button) {
+    case 1:  // disarm
+      armed = false;
+      alarm = false;
+      break;
+    case 2:  // disarm and disable
+      armed = false;
+      alarm = false;
+      althold = 0;
+      screen = ALTHOLD;
+      break;
+  }
+  // Proceed in case we're adjusting something when the alarm goes off:
+  button = 0;  UInormal();
+  return;
 }
 
 
 void UInormal()
 {
-  switch(button) {
-  #ifndef HEADLESS
+  switch (button) {
+#ifndef HEADLESS
     case 1:  // Next Screen
       screen = (screen + 1) % 5;
       lcd.clear();
       blinklcd();
       return;
-  #endif
+#endif
     case 2:  // ALT HOLD shortcut or ENT SETUP
       lcd.clear();
       blinklcd();
-  #ifndef HEADLESS
+#ifndef HEADLESS
       if (screen == SETUP) {  // Enter SETUP mode
         lcd.clear();
         setupmode = true;
@@ -226,19 +226,19 @@ void UInormal()
         screen = S_VARIANCE;
         return;
       }
-      althold = (altitude + altres_options[altres]/2) / altres_options[altres] * altres_options[altres]; // Round to altres
+      althold = (altitude + altres_options[altres] / 2) / altres_options[altres] * altres_options[altres]; // Round to altres
       screen = ALTHOLD;
-  #else
+#else
       // In headless mode we simply toggle althold mode.
       if (althold) althold = 0;
       else althold = altitude;
-  #endif
+#endif
       armed = true;
       return;
   }
-  #ifndef HEADLESS
+#ifndef HEADLESS
   if (enc_action) {
-    switch(screen) {
+    switch (screen) {
       case KOLLSMAN:
         if (enc_action > 0) slp += .01;
         else slp -= .01;
@@ -251,16 +251,16 @@ void UInormal()
         althold = constrain(althold, 0, 35000);
         armed = 0;
         break;
-        
+
     }
   }
-  #endif
+#endif
 }
 
 #ifndef HEADLESS
 void UIsetup()
 {
-  switch(button) {
+  switch (button) {
     case 1:  // Next Screen
       screen = ((screen - 4) % 6) + 5;  // rotate thru 5 -> 10
       lcd.clear();
@@ -275,7 +275,7 @@ void UIsetup()
       return;
   }
   if (enc_action) {
-    switch(screen) {
+    switch (screen) {
       case S_VARIANCE:
         if (enc_action > 0) variance += 10;
         else variance -= 10;
@@ -362,7 +362,7 @@ void rotaryCheck()
   enc_cur_pos = 0;
 
   // Rotary encoder functions borrowed from code sample at https://learn.adafruit.com/trinket-usb-volume-knob/code
-  
+
   // read in the encoder state first
   if (bit_is_clear(ROTARY_PORT, ROTARY_A)) {
     enc_cur_pos |= (1 << 0);
@@ -370,7 +370,7 @@ void rotaryCheck()
   if (bit_is_clear(ROTARY_PORT, ROTARY_B)) {
     enc_cur_pos |= (1 << 1);
   }
- 
+
   // if any rotation at all
   if (enc_cur_pos != enc_prev_pos)
   {
@@ -384,7 +384,7 @@ void rotaryCheck()
         enc_flags |= (1 << 1);
       }
     }
- 
+
     if (enc_cur_pos == 0x03)
     {
       // this is when the encoder is in the middle of a "step"
@@ -399,7 +399,7 @@ void rotaryCheck()
       else if (enc_prev_pos == 0x01) {
         enc_flags |= (1 << 3);
       }
- 
+
       // check the first and last edge
       // or maybe one edge is missing, if missing then require the middle state
       // this will reject bounces and false movements
@@ -418,7 +418,7 @@ void rotaryCheck()
       enc_flags = 0; // reset for next time
     }
   }
- 
+
   enc_prev_pos = enc_cur_pos;
   return;
 }
@@ -430,47 +430,47 @@ void setupOutput()
 {
   // User SETUP Menu screens:
   char altDisplay[14];
-  lcd.setCursor(0,0);
-    
-  switch(screen) {
+  lcd.setCursor(0, 0);
+
+  switch (screen) {
     case S_VARIANCE:
       lcd.print("Set Alert at    ");
-      lcd.setCursor(0,1);
+      lcd.setCursor(0, 1);
       lcd.print("+/- ");
       lcd.print(variance);
       lcd.print(" ft       ");
       break;
     case S_ARM:
       lcd.print("Set Arm within  ");
-      lcd.setCursor(0,1);
+      lcd.setCursor(0, 1);
       lcd.print("+/- ");
       lcd.print(arm_threshold);
       lcd.print(" ft       ");
       break;
     case S_RESOLUT:
       lcd.print("Hold Resolution:");
-      lcd.setCursor(0,1);
+      lcd.setCursor(0, 1);
       lcd.print(altres_options[altres]);
       lcd.print(" ft           ");
       break;
     case S_AOFFSET:
       lcd.print("Altitude offset:");
-      lcd.setCursor(0,1);
+      lcd.setCursor(0, 1);
       if (alt_offset > 0) lcd.print("+");
       lcd.print(alt_offset);
       lcd.print(" ft           ");
       break;
     case S_TOFFSET:
       lcd.print("Temp offset:    ");
-      lcd.setCursor(0,1);
+      lcd.setCursor(0, 1);
       if (alt_offset > 0) lcd.print("+");
-      lcd.print((tmp_offset / 10.0),1);
+      lcd.print((tmp_offset / 10.0), 1);
       lcd.print(" C.           ");
       break;
     case S_EXIT:
       lcd.print("Right to save,  ");
-      lcd.setCursor(0,1);
-      lcd.print("Left to cancel. ");                
+      lcd.setCursor(0, 1);
+      lcd.print("Left to cancel. ");
       break;
   }
 }
@@ -480,27 +480,27 @@ void lcdOutput()
 {
   // LCD screens:
   char altDisplay[14];
-  lcd.setCursor(0,0);
+  lcd.setCursor(0, 0);
   lcd.print("Alt: ");
   if (altitude > 0) lcd.print(valToStr(altitude, altDisplay, 14, ','));
   else lcd.print(altitude);
   lcd.print("          ");
 
-  lcd.setCursor(0,1);
-  switch(screen) {
+  lcd.setCursor(0, 1);
+  switch (screen) {
     case KOLLSMAN:
       lcd.print("SLP: ");
       lcd.print(slp);
       lcd.print("      ");
       break;
-      
+
     case ALTHOLD:
       lcd.print("Hold: ");
       if (althold == 0) lcd.print("off");
       else lcd.print(althold);
       lcd.print("         ");
       break;
-      
+
     case TEMP:
       lcd.print("T: ");
       lcd.print((temperature + tmp_offset) / 10.0, 1);
@@ -508,13 +508,13 @@ void lcdOutput()
       lcd.print(((temperature + tmp_offset) / 10.0 * 1.8 + 32.0), 1);
       lcd.print("F   ");
       break;
-      
+
     case VSI:
       lcd.print("VSI: ");
       lcd.print(fpm);
       lcd.print("          ");
       break;
-      
+
     case SETUP:
       lcd.print("Long press SETUP");
       break;
@@ -537,7 +537,7 @@ void updateLED()
     digitalWrite(RED, LOW);
     digitalWrite(GREEN, LOW);
     return;
-  } 
+  }
   if (alarm) {
     digitalWrite(RED, HIGH);
     digitalWrite(GREEN, LOW);
@@ -570,17 +570,17 @@ void alarmCheck()
 
 
 // ***** EEPROM *****
-void readConfig() 
+void readConfig()
 {
   /*** EEPROM Values:
    *  int8_t EEPROM_VERSION  0x02
-   *  int16_t variance       default: 50 
+   *  int16_t variance       default: 50
    *  int16_t arm_threshold  default: 50
    *  uint16_t altres        default: 20
    *  int16_t alt_offset     default: 0
    *  int16_t tmp_offset     default: 0
    ***/
-  int8_t eeprom_ver; 
+  int8_t eeprom_ver;
   uint16_t eeAddress = 0;
   EEPROM.get(eeAddress, eeprom_ver); eeAddress += sizeof(eeprom_ver);
   if (eeprom_ver != EEPROM_VERSION)
@@ -593,7 +593,7 @@ void readConfig()
   EEPROM.get(eeAddress, altres); eeAddress += sizeof(altres);
   EEPROM.get(eeAddress, alt_offset); eeAddress += sizeof(alt_offset);
   EEPROM.get(eeAddress, tmp_offset); eeAddress += sizeof(tmp_offset);
-  return;  
+  return;
 }
 
 
@@ -630,7 +630,7 @@ long pressureToAlt(long pres)
   long SLPinPA;
   SLPinPA = slp * 3386.389;
   //alt = (float)44330 * (1 - pow((float)pressure/SLPinPA, 0.190295)) * 3.28084;
-  alt = (float)145439.6372 * (1 - pow((float)pressure/SLPinPA, 0.190295));
+  alt = (float)145439.6372 * (1 - pow((float)pressure / SLPinPA, 0.190295));
   return (alt + alt_offset);
 }
 
@@ -658,11 +658,11 @@ short bmp085GetTemperature(unsigned int ut)
 {
   long x1, x2;
 
-  x1 = (((long)ut - (long)ac6)*(long)ac5) >> 15;
-  x2 = ((long)mc << 11)/(x1 + md);
+  x1 = (((long)ut - (long)ac6) * (long)ac5) >> 15;
+  x2 = ((long)mc << 11) / (x1 + md);
   b5 = x1 + x2;
 
-  return ((b5 + 8)>>4);  
+  return ((b5 + 8) >> 4);
 }
 
 // Calculate pressure given up
@@ -676,27 +676,27 @@ long bmp085GetPressure(unsigned long up)
 
   b6 = b5 - 4000;
   // Calculate B3
-  x1 = (b2 * (b6 * b6)>>12)>>11;
-  x2 = (ac2 * b6)>>11;
+  x1 = (b2 * (b6 * b6) >> 12) >> 11;
+  x2 = (ac2 * b6) >> 11;
   x3 = x1 + x2;
-  b3 = (((((long)ac1)*4 + x3)<<OSS) + 2)>>2;
+  b3 = (((((long)ac1) * 4 + x3) << OSS) + 2) >> 2;
 
   // Calculate B4
-  x1 = (ac3 * b6)>>13;
-  x2 = (b1 * ((b6 * b6)>>12))>>16;
-  x3 = ((x1 + x2) + 2)>>2;
-  b4 = (ac4 * (unsigned long)(x3 + 32768))>>15;
+  x1 = (ac3 * b6) >> 13;
+  x2 = (b1 * ((b6 * b6) >> 12)) >> 16;
+  x3 = ((x1 + x2) + 2) >> 2;
+  b4 = (ac4 * (unsigned long)(x3 + 32768)) >> 15;
 
-  b7 = ((unsigned long)(up - b3) * (50000>>OSS));
+  b7 = ((unsigned long)(up - b3) * (50000 >> OSS));
   if (b7 < 0x80000000)
-    p = (b7<<1)/b4;
+    p = (b7 << 1) / b4;
   else
-    p = (b7/b4)<<1;
+    p = (b7 / b4) << 1;
 
-  x1 = (p>>8) * (p>>8);
-  x1 = (x1 * 3038)>>16;
-  x2 = (-7357 * p)>>16;
-  p += (x1 + x2 + 3791)>>4;
+  x1 = (p >> 8) * (p >> 8);
+  x1 = (x1 * 3038) >> 16;
+  x2 = (-7357 * p) >> 16;
+  p += (x1 + x2 + 3791) >> 4;
 
   return p;
 }
@@ -711,7 +711,7 @@ char bmp085Read(unsigned char address)
   Wire.endTransmission();
 
   Wire.requestFrom(BMP085_ADDRESS, 1);
-  while(!Wire.available())
+  while (!Wire.available())
     ;
 
   return Wire.read();
@@ -729,12 +729,12 @@ int bmp085ReadInt(unsigned char address)
   Wire.endTransmission();
 
   Wire.requestFrom(BMP085_ADDRESS, 2);
-  while(Wire.available()<2)
+  while (Wire.available() < 2)
     ;
   msb = Wire.read();
   lsb = Wire.read();
 
-  return (int) msb<<8 | lsb;
+  return (int) msb << 8 | lsb;
 }
 
 // Read the uncompensated temperature value
@@ -767,11 +767,11 @@ unsigned long bmp085ReadUP()
   // Request a pressure reading w/ oversampling setting
   Wire.beginTransmission(BMP085_ADDRESS);
   Wire.write(0xF4);
-  Wire.write(0x34 + (OSS<<6));
+  Wire.write(0x34 + (OSS << 6));
   Wire.endTransmission();
 
   // Wait for conversion, delay time dependent on OSS
-  delay(2 + (3<<OSS));
+  delay(2 + (3 << OSS));
 
   // Read register 0xF6 (MSB), 0xF7 (LSB), and 0xF8 (XLSB)
   Wire.beginTransmission(BMP085_ADDRESS);
@@ -780,18 +780,18 @@ unsigned long bmp085ReadUP()
   Wire.requestFrom(BMP085_ADDRESS, 3);
 
   // Wait for data to become available
-  while(Wire.available() < 3)
+  while (Wire.available() < 3)
     ;
   msb = Wire.read();
   lsb = Wire.read();
   xlsb = Wire.read();
 
-  up = (((unsigned long) msb << 16) | ((unsigned long) lsb << 8) | (unsigned long) xlsb) >> (8-OSS);
+  up = (((unsigned long) msb << 16) | ((unsigned long) lsb << 8) | (unsigned long) xlsb) >> (8 - OSS);
 
   return up;
 }
 
-// ***** MISCELLANEOUS 
+// ***** MISCELLANEOUS
 
 /*
  ** valToStr
@@ -810,44 +810,44 @@ unsigned long bmp085ReadUP()
  */
 char * valToStr(uint32_t val, char *buf, uint8_t bufSize, char sepChar)
 {
-    // validate the parameters, return null on error
-    if ((bufSize < 2) || (buf == (char *)0))
-        return((char *)0);
+  // validate the parameters, return null on error
+  if ((bufSize < 2) || (buf == (char *)0))
+    return ((char *)0);
 
-    // put a null at the end of the buffer, adjust the size
-    buf += bufSize--;
-    *(--buf) = '\0';
+  // put a null at the end of the buffer, adjust the size
+  buf += bufSize--;
+  *(--buf) = '\0';
 
-    // special case: value equal zero
-    if (val == 0)
+  // special case: value equal zero
+  if (val == 0)
+  {
+    *(--buf) = '0';
+  }
+  else
+  {
+    uint8_t digCnt = 0;
+
+    // general case: possibly multiple digits with thousands separators
+    while ((val != 0) && bufSize)
     {
-        *(--buf) = '0';
+      // add a thousands separator every three digits
+      if (sepChar && (digCnt >= 3) && (bufSize > 1))
+      {
+        *(--buf) = sepChar;
+        bufSize--;
+        digCnt = 0;
+      }
+
+      // add another digit to the buffer
+      *(--buf) = (char)(val % 10) | '0';
+      digCnt++;
+      bufSize--;
+
+      // prepare for producing the next digit
+      val /= 10;
     }
-    else
-    {
-        uint8_t digCnt = 0;
+  }
 
-        // general case: possibly multiple digits with thousands separators
-        while ((val != 0) && bufSize)
-        {
-            // add a thousands separator every three digits
-            if (sepChar && (digCnt >= 3) && (bufSize > 1))
-            {
-                *(--buf) = sepChar;
-                bufSize--;
-                digCnt = 0;
-            }
-
-            // add another digit to the buffer
-            *(--buf) = (char)(val % 10) | '0';
-            digCnt++;
-            bufSize--;
-
-            // prepare for producing the next digit
-            val /= 10;
-        }
-    }
-
-    // return a pointer to the completed string
-    return(buf);
+  // return a pointer to the completed string
+  return (buf);
 }
