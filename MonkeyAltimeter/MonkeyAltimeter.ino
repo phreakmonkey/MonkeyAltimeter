@@ -1,5 +1,5 @@
 /******************************************
- * Monkey Altimeter v0.8
+ * Monkey Altimeter v2.0
  * K.C. Budd -/- phreakmonkey@gmail.com
  ******************************************/
 
@@ -37,13 +37,14 @@ int32_t altitude;
 
 //  User setup defaults
 //  These default values are only used if EEPROM is uninitalized.
-#define EEPROM_VERSION 0x03
+#define EEPROM_VERSION 0x04
 int16_t variance = VARIANCE;
 int16_t arm_threshold = ARM_THRESHOLD;
 uint16_t altres_options[11] = {1, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000};
 uint8_t altres = 3;
 int16_t alt_offset = 0;  // In feet
 int16_t tmp_offset = 0;  // In tenths of a degree C.
+uint8_t screenDelay = 3;
 
 #ifndef HEADLESS
 // Rotary Encoder
@@ -60,23 +61,23 @@ unsigned long lastDebounceTime = 0;
 unsigned long debounceDelay = 50;  // the debounce time
 unsigned long buttonPressTime = 0;  // Return value (1=short, 2=long)
 boolean buttonLockOut = false;
+unsigned long lastAction = 0;
 
 // Screen definitions:
-#define KOLLSMAN 0
-#define ALTHOLD  1
-#define TEMP     2
-#define VSI      3
-#define SETUP    4
+#define VSI      0
+#define KOLLSMAN 1
+#define ALTHOLD  2
+#define SETUP    3
 
 // User Setup screens:
 #define S_VARIANCE  5
 #define S_ARM       6
 #define S_RESOLUT   7
 #define S_AOFFSET   8
-#define S_TOFFSET   9
+#define S_SCRNDLY   9
 #define S_EXIT     10
 
-uint8_t screen = KOLLSMAN;
+uint8_t screen = VSI;
 boolean setupmode = false;
 
 // State variables:
@@ -102,7 +103,7 @@ void setup()
 
   // BANNER
   lcd.clear();
-  lcd.setCursor(0, 0);  lcd.print("MonkeyAlt v1.0");
+  lcd.setCursor(0, 0);  lcd.print("MonkeyAlt v2.0");
   lcd.setCursor(0, 1);  lcd.print("phreakmonkey.com");
 
 #ifndef HEADLESS
@@ -154,7 +155,11 @@ void loop()
     pressure = bmp085GetPressure(bmp085ReadUP());
     altitude = ((altitude << 1) + altitude + pressureToAlt(pressure)) >> 2; // four element moving average for smoothness
     if (setupmode) setupOutput();
-    else lcdOutput();
+    else {
+      if ((screen != VSI) && (millis() - lastAction > 1000 * screenDelay))
+        screen = VSI;
+      lcdOutput();
+    }
     alarmCheck();
     updateLED();
     clockTimer = millis();
@@ -209,12 +214,14 @@ void UInormal()
   switch (button) {
 #ifndef HEADLESS
     case 1:  // Next Screen
-      screen = (screen + 1) % 5;
+      lastAction = millis();
+      screen = (screen + 1) % 4;
       lcd.clear();
       blinklcd();
       return;
 #endif
     case 2:  // ALT HOLD shortcut or ENT SETUP
+      lastAction = millis();
       lcd.clear();
       blinklcd();
 #ifndef HEADLESS
@@ -238,20 +245,22 @@ void UInormal()
   }
 #ifndef HEADLESS
   if (enc_action) {
+    lastAction = millis();
     switch (screen) {
-      case KOLLSMAN:
-        if (enc_action > 0) slp += .01;
-        else slp -= .01;
-        slp = constrain(slp, 28.90, 31.10);
-        altitude = pressureToAlt(pressure);  // Shortcut averaging during reference changes
-        break;
+      case VSI:
+        screen = ALTHOLD;
       case ALTHOLD:
         if (enc_action > 0) althold += altres_options[altres];
         else althold -= altres_options[altres];
         althold = constrain(althold, 0, 35000);
         armed = 0;
         break;
-
+      case KOLLSMAN:
+        if (enc_action > 0) slp += .01;
+        else slp -= .01;
+        slp = constrain(slp, 28.90, 31.10);
+        altitude = pressureToAlt(pressure);  // Shortcut averaging
+        break;
     }
   }
 #endif
@@ -269,7 +278,7 @@ void UIsetup()
     case 2:  // Save & exit shortcut
       writeConfig();
       setupmode = false;
-      screen = KOLLSMAN;
+      screen = VSI;
       lcd.clear();
       lcd.blink();
       return;
@@ -296,10 +305,10 @@ void UIsetup()
         else alt_offset -= 1;
         alt_offset = constrain(alt_offset, -250, 250);
         break;
-      case S_TOFFSET:
-        if (enc_action > 0) tmp_offset += 1;
-        else tmp_offset -= 1;
-        tmp_offset = constrain(tmp_offset, -100, 100);
+      case S_SCRNDLY:
+        if (enc_action > 0) screenDelay += 1;
+        else screenDelay -= 1;
+        screenDelay = constrain(screenDelay, 2, 10);
         break;
       case S_EXIT:
         if (enc_action > 0) {
@@ -460,12 +469,11 @@ void setupOutput()
       lcd.print(alt_offset);
       lcd.print(" ft           ");
       break;
-    case S_TOFFSET:
-      lcd.print("Temp offset:    ");
+    case S_SCRNDLY:
+      lcd.print("Screen Delay:    ");
       lcd.setCursor(0, 1);
-      if (alt_offset > 0) lcd.print("+");
-      lcd.print((tmp_offset / 10.0), 1);
-      lcd.print(" C.           ");
+      lcd.print(screenDelay);
+      lcd.print(" seconds        ");
       break;
     case S_EXIT:
       lcd.print("Right to save,  ");
@@ -499,14 +507,6 @@ void lcdOutput()
       if (althold == 0) lcd.print("off");
       else lcd.print(althold);
       lcd.print("         ");
-      break;
-
-    case TEMP:
-      lcd.print("T: ");
-      lcd.print((temperature + tmp_offset) / 10.0, 1);
-      lcd.print("C ");
-      lcd.print(((temperature + tmp_offset) / 10.0 * 1.8 + 32.0), 1);
-      lcd.print("F   ");
       break;
 
     case VSI:
@@ -592,7 +592,7 @@ void readConfig()
   EEPROM.get(eeAddress, arm_threshold); eeAddress += sizeof(arm_threshold);
   EEPROM.get(eeAddress, altres); eeAddress += sizeof(altres);
   EEPROM.get(eeAddress, alt_offset); eeAddress += sizeof(alt_offset);
-  EEPROM.get(eeAddress, tmp_offset); eeAddress += sizeof(tmp_offset);
+  EEPROM.get(eeAddress, screenDelay); eeAddress += sizeof(screenDelay);
   return;
 }
 
@@ -607,7 +607,7 @@ void writeConfig()
   EEPROM.put(eeAddress, arm_threshold); eeAddress += sizeof(arm_threshold);
   EEPROM.put(eeAddress, altres); eeAddress += sizeof(altres);
   EEPROM.put(eeAddress, alt_offset); eeAddress += sizeof(alt_offset);
-  EEPROM.put(eeAddress, tmp_offset); eeAddress += sizeof(tmp_offset);
+  EEPROM.put(eeAddress, screenDelay); eeAddress += sizeof(screenDelay);
   return;
 }
 
