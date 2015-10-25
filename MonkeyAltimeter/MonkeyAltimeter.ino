@@ -64,10 +64,9 @@ boolean buttonLockOut = false;
 unsigned long lastAction = 0;
 
 // Screen definitions:
-#define VSI      0
+#define HOLDVSI  0
 #define KOLLSMAN 1
-#define ALTHOLD  2
-#define SETUP    3
+#define SETUP    2
 
 // User Setup screens:
 #define S_VARIANCE  5
@@ -77,7 +76,7 @@ unsigned long lastAction = 0;
 #define S_SCRNDLY   9
 #define S_EXIT     10
 
-uint8_t screen = VSI;
+uint8_t screen = HOLDVSI;
 boolean setupmode = false;
 
 // State variables:
@@ -156,8 +155,8 @@ void loop()
     altitude = ((altitude << 1) + altitude + pressureToAlt(pressure)) >> 2; // four element moving average for smoothness
     if (setupmode) setupOutput();
     else {
-      if ((screen != VSI) && (millis() - lastAction > 1000 * screenDelay))
-        screen = VSI;
+      if ((screen != HOLDVSI) && (millis() - lastAction > 1000 * screenDelay))
+        screen = HOLDVSI;
       lcdOutput();
     }
     alarmCheck();
@@ -200,7 +199,7 @@ void UIalarm()
       armed = false;
       alarm = false;
       althold = 0;
-      screen = ALTHOLD;
+      screen = HOLDVSI;
       break;
   }
   // Proceed in case we're adjusting something when the alarm goes off:
@@ -215,7 +214,7 @@ void UInormal()
 #ifndef HEADLESS
     case 1:  // Next Screen
       lastAction = millis();
-      screen = (screen + 1) % 4;
+      screen = (screen + 1) % 3;
       lcd.clear();
       blinklcd();
       return;
@@ -234,7 +233,7 @@ void UInormal()
         return;
       }
       althold = (altitude + altres_options[altres] / 2) / altres_options[altres] * altres_options[altres]; // Round to altres
-      screen = ALTHOLD;
+      screen = HOLDVSI;
 #else
       // In headless mode we simply toggle althold mode.
       if (althold) althold = 0;
@@ -247,9 +246,7 @@ void UInormal()
   if (enc_action) {
     lastAction = millis();
     switch (screen) {
-      case VSI:
-        screen = ALTHOLD;
-      case ALTHOLD:
+      case HOLDVSI:
         if (enc_action > 0) althold += altres_options[altres];
         else althold -= altres_options[altres];
         althold = constrain(althold, 0, 35000);
@@ -278,7 +275,7 @@ void UIsetup()
     case 2:  // Save & exit shortcut
       writeConfig();
       setupmode = false;
-      screen = VSI;
+      screen = HOLDVSI;
       lcd.clear();
       lcd.blink();
       return;
@@ -502,17 +499,15 @@ void lcdOutput()
       lcd.print("      ");
       break;
 
-    case ALTHOLD:
-      lcd.print("Hold: ");
+    case HOLDVSI:
+      lcd.print("H:");
       if (althold == 0) lcd.print("off");
       else lcd.print(althold);
-      lcd.print("         ");
-      break;
-
-    case VSI:
-      lcd.print("VSI: ");
+      lcd.print("      ");
+      lcd.setCursor(9,1);
+      lcd.print("V:");
       lcd.print(fpm);
-      lcd.print("          ");
+      lcd.print("    ");
       break;
 
     case SETUP:
